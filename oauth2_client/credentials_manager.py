@@ -119,14 +119,31 @@ class CredentialManager(object):
     def init_with_authorize_code(self, redirect_uri, code):
         request_parameters = dict(code=code, grant_type="authorization_code", scope=self.service_information.scopes,
                                   redirect_uri=redirect_uri)
-        self._init(request_parameters)
+        self._token_request(request_parameters)
 
     def init_with_credentials(self, login, password):
         request_parameters = dict(username=login, grant_type="password", scope=self.service_information.scopes,
                                   password=password)
-        self._init(request_parameters)
+        self._token_request(request_parameters)
 
-    def _init(self, request_parameters):
+    def init_with_token(self, refresh_token):
+        request_parameters = dict(grant_type="refresh_token", scope=self.service_information.scopes,
+                                  refresh_token=refresh_token)
+        self._token_request(request_parameters)
+
+    def _refresh_token(self):
+        request_parameters = dict(grant_type="refresh_token", scope=self.service_information.scopes,
+                                  refresh_token=self.refresh_token)
+        try:
+            self._token_request(request_parameters)
+        except OAuthError, err:
+            if err.status_code == httplib.UNAUTHORIZED:
+                _logger.debug('refresh_token - unauthorized - cleaning token')
+                self.access_token = None
+                self.refresh_token = None
+            raise err
+
+    def _token_request(self, request_parameters):
         response = requests.post('%s%s' % self.service_information.token_service,
                                  data=request_parameters,
                                  headers=dict(Authorization='Basic %s' % self.service_information.auth),
@@ -138,3 +155,52 @@ class CredentialManager(object):
             _logger.debug(response.text)
             self.access_token = response_tokens['access_token']
             self.refresh_token = response_tokens['refresh_token']
+
+    def get(self, url, params=None, **kwargs):
+        kwargs['params'] = params
+        return self._bearer_request(requests.get, url, **kwargs)
+
+    def post(self, url, data=None, json=None, **kwargs):
+        kwargs['data'] = data
+        kwargs['json'] = json
+        return self._bearer_request(requests.post, url, **kwargs)
+
+    def put(self, url, data=None, json=None, **kwargs):
+        kwargs['data'] = data
+        kwargs['json'] = json
+        return self._bearer_request(requests.put, url, **kwargs)
+
+    def patch(self, url, data=None, json=None, **kwargs):
+        kwargs['data'] = data
+        kwargs['json'] = json
+        return self._bearer_request(requests.patch, url, **kwargs)
+
+    def delete(self, url, **kwargs):
+        return self._bearer_request(requests.delete, url, **kwargs)
+
+    def _bearer_request(self, method, url, **kwargs):
+        if self.access_token is None:
+            raise OAuthError(httplib.UNAUTHORIZED, 'not_authenticated')
+        headers = kwargs.get('headers', None)
+        if headers is None:
+            headers = dict()
+            kwargs['headers'] = headers
+        headers['Authorization'] = 'Bearer %s' % self.access_token
+        response = method(url, **kwargs)
+        if CredentialManager._is_token_expired(response):
+            self._refresh_token()
+            headers['Authorization'] = 'Bearer %s' % self.access_token
+            return method(url, **kwargs)
+        else:
+            return response
+
+    @staticmethod
+    def _is_token_expired(response):
+        if response.status_code == httplib.UNAUTHORIZED:
+            try:
+                json_data = response.json()
+                return json_data.get('error', '') == 'invalid_token'
+            except:
+                return False
+        else:
+            return False
