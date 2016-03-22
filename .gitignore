@@ -1,3 +1,7 @@
 tests/sandbox.py
 .idea/
 *.pyc
+build/
+dist/
+oauth2_client.egg-info/
+
