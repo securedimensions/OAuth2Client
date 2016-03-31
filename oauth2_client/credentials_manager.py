@@ -144,7 +144,7 @@ class CredentialManager(object):
             raise err
 
     def _token_request(self, request_parameters):
-        response = requests.post('%s%s' % self.service_information.token_service,
+        response = requests.post(self.service_information.token_service,
                                  data=request_parameters,
                                  headers=dict(Authorization='Basic %s' % self.service_information.auth),
                                  proxies=self.proxies)
@@ -186,6 +186,7 @@ class CredentialManager(object):
             headers = dict()
             kwargs['headers'] = headers
         headers['Authorization'] = 'Bearer %s' % self.access_token
+        kwargs['proxies'] = self.proxies
         response = method(url, **kwargs)
         if CredentialManager._is_token_expired(response):
             self._refresh_token()
