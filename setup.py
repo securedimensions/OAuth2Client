@@ -4,7 +4,7 @@ import shutil
 
 src_dir = '.'
 package_directory = 'oauth2_client'
-package_name = 'oauth2_client'
+package_name = 'oauth2-client'
 
 __version__ = None
 version_file = '%s/%s/__init__.py' % (src_dir, package_directory)
