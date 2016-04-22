@@ -27,13 +27,15 @@ class OAuthError(BaseException):
 
 
 class ServiceInformation(object):
-    def __init__(self, authorize_service, token_service, client_id, client_secret, scopes):
+    def __init__(self, authorize_service, token_service, client_id, client_secret, scopes,
+                 skip_ssl_verifications=False):
         self.authorize_service = authorize_service
         self.token_service = token_service
         self.client_id = client_id
         self.client_secret = client_secret
         self.scopes = ' '.join(scopes)
         self.auth = base64.b64encode('%s:%s' % (self.client_id, self.client_secret))
+        self.skip_ssl_verifications = skip_ssl_verifications
 
 
 class AuthorizeResponseCallback(dict):
@@ -63,6 +65,12 @@ class CredentialManager(object):
         self.authorization_code_context = None
         self.access_token = None
         self.refresh_token = None
+        if service_information.skip_ssl_verifications:
+            from requests.packages.urllib3.exceptions import InsecureRequestWarning
+            import warnings
+
+            warnings.filterwarnings('ignore', 'Unverified HTTPS request is being made.*', InsecureRequestWarning)
+
 
     @staticmethod
     def _handle_bad_response(response):
@@ -147,12 +155,13 @@ class CredentialManager(object):
         response = requests.post(self.service_information.token_service,
                                  data=request_parameters,
                                  headers=dict(Authorization='Basic %s' % self.service_information.auth),
-                                 proxies=self.proxies)
+                                 proxies=self.proxies,
+                                 verify=not self.service_information.skip_ssl_verifications)
         if response.status_code != httplib.OK:
             CredentialManager._handle_bad_response(response)
         else:
-            response_tokens = response.json()
             _logger.debug(response.text)
+            response_tokens = response.json()
             self.access_token = response_tokens['access_token']
             self.refresh_token = response_tokens['refresh_token']
 
@@ -187,6 +196,8 @@ class CredentialManager(object):
             kwargs['headers'] = headers
         headers['Authorization'] = 'Bearer %s' % self.access_token
         kwargs['proxies'] = self.proxies
+        kwargs['verify'] = not self.service_information.skip_ssl_verifications
+        _logger.debug("_bearer_request on %s - %s" % (method.__name__, url))
         response = method(url, **kwargs)
         if CredentialManager._is_token_expired(response):
             self._refresh_token()
