@@ -79,6 +79,12 @@ class CredentialManager(object):
         except:
             raise OAuthError(response.status_code, response.text)
 
+    def generate_authorize_url(self, redirect_uri, state):
+        parameters = dict(client_id=self.service_information.client_id, redirect_uri=redirect_uri,
+                          response_type='code', scope=self.service_information.scopes, state=state)
+        return '%s?%s' % (self.service_information.authorize_service,
+                         '&'.join('%s=%s' % (k, urllib.quote(v, safe='~()*!.\'')) for k, v in parameters.items()))
+
     def init_authorize_code_process(self, redirect_uri, state=''):
         uri_parsed = urlparse(redirect_uri)
         if uri_parsed.scheme == 'https':
@@ -91,12 +97,7 @@ class CredentialManager(object):
         if uri_parsed.hostname != 'localhost' and uri_parsed.hostname != '127.0.0.1':
             _logger.warn('Remember to put %s in your hosts config to point to loop back address' % uri_parsed.hostname)
         self.authorization_code_context = AuthorizationContext(state, port, uri_parsed.hostname)
-        parameters = dict(client_id=self.service_information.client_id, redirect_uri=redirect_uri,
-                          response_type='code', scope=self.service_information.scopes, state=state)
-
-        url = '%s?%s' % (self.service_information.authorize_service,
-                         '&'.join('%s=%s' % (k, urllib.quote(v, safe='~()*!.\'')) for k, v in parameters.items()))
-        return url
+        return self.generate_authorize_url(redirect_uri, state)
 
     def wait_and_terminate_authorize_code_process(self, timeout=None):
         if self.authorization_code_context is None:
