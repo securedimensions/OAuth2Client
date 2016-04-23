@@ -24,7 +24,7 @@ def purge_sub_dir(path):
 
 setup(name=package_name,
       version=__version__,
-      zip_safe=True,
+      zip_safe=False,
       packages=find_packages(where=src_dir),
       author='Benjamin Einaudi',
       author_email='antechrestos@gmail.com',

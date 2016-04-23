@@ -33,7 +33,7 @@ class ServiceInformation(object):
         self.token_service = token_service
         self.client_id = client_id
         self.client_secret = client_secret
-        self.scopes = ' '.join(scopes)
+        self.scopes = scopes
         self.auth = base64.b64encode('%s:%s' % (self.client_id, self.client_secret))
         self.skip_ssl_verifications = skip_ssl_verifications
 
@@ -80,8 +80,11 @@ class CredentialManager(object):
             raise OAuthError(response.status_code, response.text)
 
     def generate_authorize_url(self, redirect_uri, state):
-        parameters = dict(client_id=self.service_information.client_id, redirect_uri=redirect_uri,
-                          response_type='code', scope=self.service_information.scopes, state=state)
+        parameters = dict(client_id=self.service_information.client_id,
+                          redirect_uri=redirect_uri,
+                          response_type='code',
+                          scope=' '.join(self.service_information.scopes),
+                          state=state)
         return '%s?%s' % (self.service_information.authorize_service,
                          '&'.join('%s=%s' % (k, urllib.quote(v, safe='~()*!.\'')) for k, v in parameters.items()))
 
@@ -126,22 +129,26 @@ class CredentialManager(object):
                 self.authorization_code_context = None
 
     def init_with_authorize_code(self, redirect_uri, code):
-        request_parameters = dict(code=code, grant_type="authorization_code", scope=self.service_information.scopes,
+        request_parameters = dict(code=code, grant_type="authorization_code",
+                                  scope=' '.join(self.service_information.scopes),
                                   redirect_uri=redirect_uri)
         self._token_request(request_parameters)
 
     def init_with_credentials(self, login, password):
-        request_parameters = dict(username=login, grant_type="password", scope=self.service_information.scopes,
+        request_parameters = dict(username=login, grant_type="password",
+                                  scope=' '.join(self.service_information.scopes),
                                   password=password)
         self._token_request(request_parameters)
 
     def init_with_token(self, refresh_token):
-        request_parameters = dict(grant_type="refresh_token", scope=self.service_information.scopes,
+        request_parameters = dict(grant_type="refresh_token",
+                                  scope=' '.join(self.service_information.scopes),
                                   refresh_token=refresh_token)
         self._token_request(request_parameters)
 
     def _refresh_token(self):
-        request_parameters = dict(grant_type="refresh_token", scope=self.service_information.scopes,
+        request_parameters = dict(grant_type="refresh_token",
+                                  scope=' '.join(self.service_information.scopes),
                                   refresh_token=self.refresh_token)
         try:
             self._token_request(request_parameters)
