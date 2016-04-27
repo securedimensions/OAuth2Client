@@ -63,8 +63,9 @@ class CredentialManager(object):
         self.service_information = service_information
         self.proxies = proxies
         self.authorization_code_context = None
-        self.access_token = None
         self.refresh_token = None
+        self.refresh_token = None
+        self._session = None
         if service_information.skip_ssl_verifications:
             from requests.packages.urllib3.exceptions import InsecureRequestWarning
             import warnings
@@ -155,7 +156,7 @@ class CredentialManager(object):
         except OAuthError, err:
             if err.status_code == httplib.UNAUTHORIZED:
                 _logger.debug('refresh_token - unauthorized - cleaning token')
-                self.access_token = None
+                self._session = None
                 self.refresh_token = None
             raise err
 
@@ -170,46 +171,50 @@ class CredentialManager(object):
         else:
             _logger.debug(response.text)
             response_tokens = response.json()
-            self.access_token = response_tokens['access_token']
             self.refresh_token = response_tokens['refresh_token']
+            if self._session is None:
+                self._session = requests.Session()
+                self._session.proxies = self.proxies
+                self._session.verify = not self.service_information.skip_ssl_verifications
+                self._session.trust_env = False
+            self._session.headers.update(dict(Authorization='Bearer %s' % response_tokens['access_token']))
 
     def get(self, url, params=None, **kwargs):
         kwargs['params'] = params
-        return self._bearer_request(requests.get, url, **kwargs)
+        return self._bearer_request(self._get_session().get, url, **kwargs)
 
     def post(self, url, data=None, json=None, **kwargs):
         kwargs['data'] = data
         kwargs['json'] = json
-        return self._bearer_request(requests.post, url, **kwargs)
+        return self._bearer_request(self._get_session().post, url, **kwargs)
 
     def put(self, url, data=None, json=None, **kwargs):
         kwargs['data'] = data
         kwargs['json'] = json
-        return self._bearer_request(requests.put, url, **kwargs)
+        return self._bearer_request(self._get_session().put, url, **kwargs)
 
     def patch(self, url, data=None, json=None, **kwargs):
         kwargs['data'] = data
         kwargs['json'] = json
-        return self._bearer_request(requests.patch, url, **kwargs)
+        return self._bearer_request(self._get_session().patch, url, **kwargs)
 
     def delete(self, url, **kwargs):
-        return self._bearer_request(requests.delete, url, **kwargs)
+        return self._bearer_request(self._get_session().delete, url, **kwargs)
+
+    def _get_session(self):
+        if self._session is None:
+            raise OAuthError(httplib.UNAUTHORIZED, "no token provided")
+        return self._session
 
     def _bearer_request(self, method, url, **kwargs):
-        if self.access_token is None:
-            raise OAuthError(httplib.UNAUTHORIZED, 'not_authenticated')
         headers = kwargs.get('headers', None)
         if headers is None:
             headers = dict()
             kwargs['headers'] = headers
-        headers['Authorization'] = 'Bearer %s' % self.access_token
-        kwargs['proxies'] = self.proxies
-        kwargs['verify'] = not self.service_information.skip_ssl_verifications
         _logger.debug("_bearer_request on %s - %s" % (method.__name__, url))
         response = method(url, **kwargs)
         if CredentialManager._is_token_expired(response):
-            self._refresh_token()
-            headers['Authorization'] = 'Bearer %s' % self.access_token
+            self._session.headers.update(dict(Authorization='Bearer %s' % self._refresh_token()))
             return method(url, **kwargs)
         else:
             return response
