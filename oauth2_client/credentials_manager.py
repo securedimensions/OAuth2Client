@@ -9,7 +9,6 @@ import requests
 
 from oauth2_client.http_server import start_http_server, stop_http_server
 
-
 requests.packages.urllib3.disable_warnings()
 
 _logger = logging.getLogger(__name__)
@@ -72,7 +71,6 @@ class CredentialManager(object):
 
             warnings.filterwarnings('ignore', 'Unverified HTTPS request is being made.*', InsecureRequestWarning)
 
-
     @staticmethod
     def _handle_bad_response(response):
         try:
@@ -87,7 +85,7 @@ class CredentialManager(object):
                           scope=' '.join(self.service_information.scopes),
                           state=state)
         return '%s?%s' % (self.service_information.authorize_service,
-                         '&'.join('%s=%s' % (k, urllib.quote(v, safe='~()*!.\'')) for k, v in parameters.items()))
+                          '&'.join('%s=%s' % (k, urllib.quote(v, safe='~()*!.\'')) for k, v in parameters.items()))
 
     def init_authorize_code_process(self, redirect_uri, state=''):
         uri_parsed = urlparse(redirect_uri)
@@ -171,7 +169,10 @@ class CredentialManager(object):
         else:
             _logger.debug(response.text)
             response_tokens = response.json()
-            self.refresh_token = response_tokens['refresh_token']
+            if 'refresh_token' in request_parameters:
+                self.refresh_token = response_tokens.get('refresh_token', request_parameters['refresh_token'])
+            else:
+                self.refresh_token = response_tokens['refresh_token']
             if self._session is None:
                 self._session = requests.Session()
                 self._session.proxies = self.proxies
