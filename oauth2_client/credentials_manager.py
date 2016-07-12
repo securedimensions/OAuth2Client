@@ -58,9 +58,9 @@ class AuthorizationContext(object):
 
 
 class CredentialManager(object):
-    def __init__(self, service_information, proxies=dict(http='', https='')):
+    def __init__(self, service_information, proxies=None):
         self.service_information = service_information
-        self.proxies = proxies
+        self.proxies = proxies if proxies is not None else dict(http='', https='')
         self.authorization_code_context = None
         self.refresh_token = None
         self.refresh_token = None
@@ -133,11 +133,16 @@ class CredentialManager(object):
                                   redirect_uri=redirect_uri)
         self._token_request(request_parameters)
 
-    def init_with_credentials(self, login, password):
+    def init_with_user_credentials(self, login, password):
         request_parameters = dict(username=login, grant_type="password",
                                   scope=' '.join(self.service_information.scopes),
                                   password=password)
         self._token_request(request_parameters)
+
+    def init_with_client_credentials(self):
+        request_parameters = dict(grant_type="client_credentials",
+                                  scope=' '.join(self.service_information.scopes))
+        self._token_request(request_parameters, False)
 
     def init_with_token(self, refresh_token):
         request_parameters = dict(grant_type="refresh_token",
@@ -158,7 +163,7 @@ class CredentialManager(object):
                 self.refresh_token = None
             raise err
 
-    def _token_request(self, request_parameters):
+    def _token_request(self, request_parameters, contain_refresh_token=True):
         response = requests.post(self.service_information.token_service,
                                  data=request_parameters,
                                  headers=dict(Authorization='Basic %s' % self.service_information.auth),
@@ -169,9 +174,9 @@ class CredentialManager(object):
         else:
             _logger.debug(response.text)
             response_tokens = response.json()
-            if 'refresh_token' in request_parameters:
+            if contain_refresh_token and 'refresh_token' in request_parameters:
                 self.refresh_token = response_tokens.get('refresh_token', request_parameters['refresh_token'])
-            else:
+            elif contain_refresh_token:
                 self.refresh_token = response_tokens['refresh_token']
             if self._session is None:
                 self._session = requests.Session()
