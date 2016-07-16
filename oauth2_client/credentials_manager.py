@@ -178,10 +178,10 @@ class CredentialManager(object):
             elif contain_refresh_token:
                 self.refresh_token = response_tokens['refresh_token']
             self._init_session()
-            self._set_access_token(response_tokens)
+            self._set_access_token(response_tokens['access_token'])
 
-    def _set_access_token(self, response_tokens):
-        self._session.headers.update(dict(Authorization='Bearer %s' % response_tokens['access_token']))
+    def _set_access_token(self, access_token):
+        self._session.headers.update(dict(Authorization='Bearer %s' % access_token))
 
     def _init_session(self):
         if self._session is None:
