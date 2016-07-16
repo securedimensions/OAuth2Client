@@ -224,7 +224,7 @@ class CredentialManager(object):
             kwargs['headers'] = headers
         _logger.debug("_bearer_request on %s - %s" % (method.__name__, url))
         response = method(url, **kwargs)
-        if CredentialManager._is_token_expired(response):
+        if self._is_token_expired(response):
             self._session.headers.update(dict(Authorization='Bearer %s' % self._refresh_token()))
             return method(url, **kwargs)
         else:
