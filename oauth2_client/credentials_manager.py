@@ -63,7 +63,6 @@ class CredentialManager(object):
         self.proxies = proxies if proxies is not None else dict(http='', https='')
         self.authorization_code_context = None
         self.refresh_token = None
-        self.refresh_token = None
         self._session = None
         if service_information.skip_ssl_verifications:
             from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -178,12 +177,18 @@ class CredentialManager(object):
                 self.refresh_token = response_tokens.get('refresh_token', request_parameters['refresh_token'])
             elif contain_refresh_token:
                 self.refresh_token = response_tokens['refresh_token']
-            if self._session is None:
-                self._session = requests.Session()
-                self._session.proxies = self.proxies
-                self._session.verify = not self.service_information.skip_ssl_verifications
-                self._session.trust_env = False
-            self._session.headers.update(dict(Authorization='Bearer %s' % response_tokens['access_token']))
+            self._init_session()
+            self._set_access_token(response_tokens)
+
+    def _set_access_token(self, response_tokens):
+        self._session.headers.update(dict(Authorization='Bearer %s' % response_tokens['access_token']))
+
+    def _init_session(self):
+        if self._session is None:
+            self._session = requests.Session()
+            self._session.proxies = self.proxies
+            self._session.verify = not self.service_information.skip_ssl_verifications
+            self._session.trust_env = False
 
     def get(self, url, params=None, **kwargs):
         kwargs['params'] = params
