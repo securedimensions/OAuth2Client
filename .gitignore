@@ -1,4 +1,4 @@
-tests/sandbox.py
+tests/oauth2_client_tests/sandbox.py
 .idea/
 *.pyc
 build/
