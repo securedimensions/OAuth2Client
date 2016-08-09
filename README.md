@@ -1,4 +1,4 @@
-# OAuth2Client [![pypi](https://img.shields.io/pypi/v/oauth2-client.svg)]() [![license](https://img.shields.io/github/license/antechrestos/Oauth2Client.svg)]()
+# OAuth2Client  [![pypi](https://img.shields.io/pypi/v/oauth2-client.svg)](https://pypi.python.org/pypi/oauth2-client) [![license](https://img.shields.io/github/license/antechrestos/Oauth2Client.svg)](https://raw.githubusercontent.com/antechrestos/OAuth2Client/master/LICENSE)
 
 ## Presentation
 *OAuth2Client* is a simple python client library for OAuth2. It is based on the [requests](https://pypi.python.org/pypi/requests).
