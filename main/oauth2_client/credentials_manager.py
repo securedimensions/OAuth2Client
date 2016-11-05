@@ -1,15 +1,10 @@
-import urllib
 import base64
 import logging
-import httplib
 from threading import Event
-from urlparse import urlparse
 
-import requests
-
+from oauth2_client.imported import *
 from oauth2_client.http_server import start_http_server, stop_http_server
 
-requests.packages.urllib3.disable_warnings()
 
 _logger = logging.getLogger(__name__)
 
@@ -33,7 +28,7 @@ class ServiceInformation(object):
         self.client_id = client_id
         self.client_secret = client_secret
         self.scopes = scopes
-        self.auth = base64.b64encode('%s:%s' % (self.client_id, self.client_secret))
+        self.auth = base64.b64encode(bufferize_string('%s:%s' % (self.client_id, self.client_secret)))
         self.skip_ssl_verifications = skip_ssl_verifications
 
 
@@ -42,19 +37,19 @@ class AuthorizeResponseCallback(dict):
         super(AuthorizeResponseCallback, self).__init__(*args, **kwargs)
         self.response = Event()
 
-    def update(self, other, **kwargs):
-        super(AuthorizeResponseCallback, self).update(other, **kwargs)
-        self.response.set()
-
     def wait(self, timeout=None):
         self.response.wait(timeout)
+
+    def register_parameters(self, parameters):
+        self.update(parameters)
+        self.response.set()
 
 
 class AuthorizationContext(object):
     def __init__(self, state, port, host):
         self.state = state
         self.results = AuthorizeResponseCallback()
-        self.server = start_http_server(port, host, self.results.update)
+        self.server = start_http_server(port, host, self.results.register_parameters)
 
 
 class CredentialManager(object):
@@ -84,7 +79,7 @@ class CredentialManager(object):
                           scope=' '.join(self.service_information.scopes),
                           state=state)
         return '%s?%s' % (self.service_information.authorize_service,
-                          '&'.join('%s=%s' % (k, urllib.quote(v, safe='~()*!.\'')) for k, v in parameters.items()))
+                          '&'.join('%s=%s' % (k, quote(v, safe='~()*!.\'')) for k, v in parameters.items()))
 
     def init_authorize_code_process(self, redirect_uri, state=''):
         uri_parsed = urlparse(redirect_uri)
@@ -111,15 +106,15 @@ class CredentialManager(object):
                 code = self.authorization_code_context.results.get('code', None)
                 state = self.authorization_code_context.results.get('state', None)
                 if error is not None:
-                    raise OAuthError(httplib.UNAUTHORIZED, error_description,
+                    raise OAuthError(UNAUTHORIZED, error_description,
                                      dict(error=error, error_description=error_description))
                 elif state != self.authorization_code_context.state:
                     _logger.warn('State received does not match the one that was sent')
-                    raise OAuthError(httplib.INTERNAL_SERVER_ERROR,
+                    raise OAuthError(INTERNAL_SERVER_ERROR,
                                      'Sate returned does not match: Sent(%s) <> Got(%s)'
                                      % (self.authorization_code_context.state, state))
                 elif code is None:
-                    raise OAuthError(httplib.INTERNAL_SERVER_ERROR, 'No code returned')
+                    raise OAuthError(INTERNAL_SERVER_ERROR, 'No code returned')
                 else:
                     return code
             finally:
@@ -155,8 +150,8 @@ class CredentialManager(object):
                                   refresh_token=self.refresh_token)
         try:
             self._token_request(request_parameters)
-        except OAuthError, err:
-            if err.status_code == httplib.UNAUTHORIZED:
+        except OAuthError as err:
+            if err.status_code == UNAUTHORIZED:
                 _logger.debug('refresh_token - unauthorized - cleaning token')
                 self._session = None
                 self.refresh_token = None
@@ -168,7 +163,7 @@ class CredentialManager(object):
                                  headers=dict(Authorization='Basic %s' % self.service_information.auth),
                                  proxies=self.proxies,
                                  verify=not self.service_information.skip_ssl_verifications)
-        if response.status_code != httplib.OK:
+        if response.status_code != OK:
             CredentialManager._handle_bad_response(response)
         else:
             _logger.debug(response.text)
@@ -214,7 +209,7 @@ class CredentialManager(object):
 
     def _get_session(self):
         if self._session is None:
-            raise OAuthError(httplib.UNAUTHORIZED, "no token provided")
+            raise OAuthError(UNAUTHORIZED, "no token provided")
         return self._session
 
     def _bearer_request(self, method, url, **kwargs):
@@ -232,7 +227,7 @@ class CredentialManager(object):
 
     @staticmethod
     def _is_token_expired(response):
-        if response.status_code == httplib.UNAUTHORIZED:
+        if response.status_code == UNAUTHORIZED:
             try:
                 json_data = response.json()
                 return json_data.get('error', '') == 'invalid_token'

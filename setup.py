@@ -1,6 +1,7 @@
-from setuptools import setup, find_packages
 import os
 import shutil
+
+from setuptools import setup, find_packages
 
 src_dir = 'main'
 package_directory = 'oauth2_client'
@@ -11,7 +12,7 @@ version_file = '%s/%s/__init__.py' % (src_dir, package_directory)
 with open(version_file, 'r') as f:
     for line in f.readlines():
         if line.find('__version__') >= 0:
-            exec line
+            exec(line)
 
 if __version__ is None:
     raise AssertionError('Failed to load version from %s' % version_file)
@@ -19,7 +20,6 @@ if __version__ is None:
 
 def purge_sub_dir(path):
     shutil.rmtree(os.path.join(os.path.dirname(__file__), path))
-
 
 
 setup(name=package_name,
@@ -36,6 +36,8 @@ setup(name=package_name,
           "Natural Language :: English",
           "Operating System :: OS Independent",
           "Programming Language :: Python :: 2.7",
+          "Programming Language :: Python :: 3.4",
+          "Programming Language :: Python :: 3.5",
           "Topic :: Communications",
       ],
       package_dir={package_directory: '%s/%s' % (src_dir, package_directory)},
