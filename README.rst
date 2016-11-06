@@ -12,6 +12,7 @@ Presentation
 OAuth2Client is a simple python client library for OAuth2. It is based on the requests_
     .. _requests: https://pypi.python.org/pypi/requests/
 
+It is now supported for python 2 and 3
 
 Login process
 -------------
