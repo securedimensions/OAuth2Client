@@ -27,6 +27,9 @@ service_information = ServiceInformation(
     scopes=['scope1', 'scope2'])
 
 
+basic_auth = 'Basic Y2xpZW50X2lkX3Rlc3Q6Y2xpZW50X3NlY3JldF90ZXN0'
+
+
 class FakeOAuthHandler(BaseHTTPRequestHandler):
     CODE = '123'
 
@@ -252,14 +255,10 @@ class TestManager(unittest.TestCase):
             else 'the refresh token'
         access_token = 'the access token'
 
-        expected_basic_auth = 'Basic %s' % base64.b64encode(bufferize_string('%s:%s' %
-                                                                             (service_information.client_id,
-                                                                              service_information.client_secret)))
-
         class CheckGetTokenWithCode(FakeOAuthHandler):
             def _handle_post(self, parameters):
                 try:
-                    test_case.assertEqual(self.headers.get('Authorization', None), expected_basic_auth)
+                    test_case.assertEqual(self.headers.get('Authorization', None), basic_auth)
                     for name, expected_value in required_parameters.items():
                         test_case.assertEqual(parameters.get(bufferize_string(name), None),
                                               [bufferize_string(expected_value)])

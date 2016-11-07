@@ -28,7 +28,8 @@ class ServiceInformation(object):
         self.client_id = client_id
         self.client_secret = client_secret
         self.scopes = scopes
-        self.auth = base64.b64encode(bufferize_string('%s:%s' % (self.client_id, self.client_secret)))
+        self.auth = unbufferize_buffer(
+            base64.b64encode(bufferize_string('%s:%s' % (self.client_id, self.client_secret))))
         self.skip_ssl_verifications = skip_ssl_verifications
 
 
