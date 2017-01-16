@@ -1,5 +1,6 @@
 import base64
 import logging
+import json
 from threading import Event
 
 from oauth2_client.imported import *
@@ -10,14 +11,13 @@ _logger = logging.getLogger(__name__)
 
 
 class OAuthError(BaseException):
-    def __init__(self, status_code, response_text, error=None):
+    def __init__(self, status_code, error, error_description=None):
         self.status_code = status_code
-        self.response_text = response_text
         self.error = error
+        self.error_description = error_description
 
     def __str__(self):
-        return '%d  - %s : %s' % (self.status_code, self.error['error'], self.error['error_description']) \
-            if self.error is not None else '%d  - %s' % (self.status_code, self.response_text)
+        return '%d  - %s : %s' % (self.status_code, self.error, self.error_description)
 
 
 class ServiceInformation(object):
@@ -69,9 +69,14 @@ class CredentialManager(object):
     @staticmethod
     def _handle_bad_response(response):
         try:
-            raise OAuthError(response.status_code, response.text, response.json())
-        except:
-            raise OAuthError(response.status_code, response.text)
+            error = response.json()
+            raise OAuthError(response.status_code, error.get('error'), error.get('error_description'))
+        except BaseException as ex:
+            if type(ex) != OAuthError:
+                _logger.exception('_handle_bad_response - error while getting error as json - %s - %s' % (type(ex), str(ex)))
+                raise OAuthError(response.status_code, 'unknown_error', response.text)
+            else:
+                raise
 
     def generate_authorize_url(self, redirect_uri, state):
         parameters = dict(client_id=self.service_information.client_id,
@@ -107,15 +112,14 @@ class CredentialManager(object):
                 code = self.authorization_code_context.results.get('code', None)
                 state = self.authorization_code_context.results.get('state', None)
                 if error is not None:
-                    raise OAuthError(UNAUTHORIZED, error_description,
-                                     dict(error=error, error_description=error_description))
+                    raise OAuthError(UNAUTHORIZED, error,error_description)
                 elif state != self.authorization_code_context.state:
                     _logger.warn('State received does not match the one that was sent')
-                    raise OAuthError(INTERNAL_SERVER_ERROR,
+                    raise OAuthError(INTERNAL_SERVER_ERROR, 'invalid_state',
                                      'Sate returned does not match: Sent(%s) <> Got(%s)'
                                      % (self.authorization_code_context.state, state))
                 elif code is None:
-                    raise OAuthError(INTERNAL_SERVER_ERROR, 'No code returned')
+                    raise OAuthError(INTERNAL_SERVER_ERROR, 'no_code', 'No code returned')
                 else:
                     return code
             finally:
@@ -210,7 +214,7 @@ class CredentialManager(object):
 
     def _get_session(self):
         if self._session is None:
-            raise OAuthError(UNAUTHORIZED, "no token provided")
+            raise OAuthError(UNAUTHORIZED, 'no_token', "no token provided")
         return self._session
 
     def _bearer_request(self, method, url, **kwargs):
