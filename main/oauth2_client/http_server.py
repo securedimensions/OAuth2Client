@@ -1,7 +1,6 @@
-import json
 import logging
 import threading
-
+import json
 from oauth2_client.imported import *
 
 _logger = logging.getLogger(__name__)
@@ -29,9 +28,9 @@ def start_http_server(port, host='', callback=None):
         def do_GET(self):
             _logger.debug('GET - %s' % self.path)
             params_received = read_request_parameters(self.path)
-            response = json.dumps(params_received)
+            response = 'Response received (%s). Result was transmitted to the original thread. You can close this window.' % json.dumps(params_received)
             self.send_response(OK, 'OK')
-            self.send_header("Content-type", 'application/json')
+            self.send_header("Content-type", 'text/plain')
             self.send_header("Content-Length", len(response))
             self.end_headers()
             try:

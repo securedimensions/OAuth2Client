@@ -1,5 +1,6 @@
 import logging
 import unittest
+import json
 
 import requests
 
@@ -29,22 +30,24 @@ class TestServer(unittest.TestCase):
     def test_start(self):
         response = requests.get('http://127.0.0.1:%d' % TestServer.PORT, proxies=dict(http=''))
         self.assertIsNotNone(response)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(200, response.status_code)
 
     def test_response_no_parameter(self):
         response = requests.get('http://127.0.0.1:%d' % TestServer.PORT, proxies=dict(http=''))
         self.assertIsNotNone(response)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
-        self.assertEqual(response.text, '{}')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('text/plain', response.headers['Content-Type'])
+        self.assertTrue(response.text.startswith('Response received'))
+        self.assertEqual({}, self._extract_response(response.text))
 
     def test_response_parameter(self):
         response = requests.get('http://127.0.0.1:%d?toto=titi' % TestServer.PORT, proxies=dict(http=''))
         self.assertIsNotNone(response)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('text/plain', response.headers['Content-Type'])
         _logger.debug("test_response_parameter - %s", response.text)
-        obj_response = response.json()
+        self.assertTrue(response.text.startswith('Response received'))
+        obj_response = self._extract_response(response.text)
         self.assertIsNotNone(obj_response)
         self.assertEqual(obj_response.get('toto', None), 'titi')
 
@@ -52,6 +55,18 @@ class TestServer(unittest.TestCase):
         TestServer.CALLBACK_CONTAINER.clear()
         response = requests.get('http://127.0.0.1:%d?toto=titi' % TestServer.PORT, proxies=dict(http=''))
         self.assertIsNotNone(response)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
+        self.assertEqual(200, response.status_code)
+        self.assertEqual('text/plain', response.headers['Content-Type'])
         self.assertEqual(TestServer.CALLBACK_CONTAINER.get('toto', None), 'titi')
+
+    @staticmethod
+    def _extract_response(text):
+        idx_start = text.find('{')
+        if idx_start >= 0:
+            idx_end = text.find('}', idx_start)
+            if idx_end >= 0:
+                return json.loads(text[idx_start: idx_end+1])
+            else:
+                return dict()
+        else:
+            return dict()
