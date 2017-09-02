@@ -235,8 +235,7 @@ class TestManager(unittest.TestCase):
             _logger.debug('test_get_token_with_code - server started')
             api_url = 'http://localhost:%d/api/uri' % api_server_port
             manager = CredentialManager(service_information, proxies=dict(http=''))
-            manager._init_session()
-            manager._set_access_token(access_token)
+            manager._access_token = access_token
             BearerHandler.EXPECTED_METHOD = 'GET'
             manager.get(api_url)
             BearerHandler.EXPECTED_METHOD = 'POST'
@@ -282,5 +281,5 @@ class TestManager(unittest.TestCase):
                 self.assertEqual(manager.refresh_token, refresh_token)
             else:
                 self.assertIsNone(manager.refresh_token)
-            self.assertEqual(manager._session.headers.get('Authorization', None), 'Bearer %s' % access_token)
+            self.assertEqual(manager._access_token, access_token)
 

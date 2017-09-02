@@ -177,18 +177,23 @@ class CredentialManager(object):
                 self.refresh_token = response_tokens.get('refresh_token', request_parameters['refresh_token'])
             elif contain_refresh_token:
                 self.refresh_token = response_tokens['refresh_token']
-            self._init_session()
-            self._set_access_token(response_tokens['access_token'])
+            self._access_token = response_tokens['access_token']
 
-    def _set_access_token(self, access_token):
-        self._session.headers.update(dict(Authorization='Bearer %s' % access_token))
+    @property
+    def _access_token(self):
+        if self._session is not None:
+            return self._session.headers['Authorization'][len('Bearer '):]
+        else:
+            return None
 
-    def _init_session(self):
+    @_access_token.setter
+    def _access_token(self, access_token):
         if self._session is None:
             self._session = requests.Session()
             self._session.proxies = self.proxies
             self._session.verify = not self.service_information.skip_ssl_verifications
             self._session.trust_env = False
+        self._session.headers.update(dict(Authorization='Bearer %s' % access_token))
 
     def get(self, url, params=None, **kwargs):
         kwargs['params'] = params

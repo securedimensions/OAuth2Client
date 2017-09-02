@@ -54,7 +54,7 @@ Getting a couple of access token may be done like this:
     # when the server gets the request with the code (or error) in its query parameters
     _logger.debug('Code got = %s', code)
     manager.init_with_authorize_code(redirect_uri, code)
-    _logger.debug('Access got = %s', manager.access_token)
+    _logger.debug('Access got = %s', manager._access_token)
     # Here access and refresh token may be used with self.refresh_token
 
 User credentials
@@ -73,7 +73,7 @@ Getting a couple of access and refresh token is much easier:
     manager = CredentialManager(service_information,
                                 proxies=dict(http='http://localhost:3128', https='http://localhost:3128'))
     manager.init_with_user_credentials('login', 'password')
-    _logger.debug('Access got = %s', manager.access_token)
+    _logger.debug('Access got = %s', manager._access_token)
     # Here access and refresh token may be used
 
 Client credentials
