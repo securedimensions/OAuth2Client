@@ -102,3 +102,24 @@ Token expiration
 ``CredentialManager`` class handle token expiration by calling the ``CredentialManager._is_token_expired`` static method.
 This implementation is not accurate for all OAuth server implementation. You'd better extend  ``CredentialManager`` class
 and override ``_is_token_expired`` method.
+
+Read other fields from token response
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``CredentialManager`` can be subclassed to handle other token response fields such as ``id_token`` in OpenId protocol.
+
+.. code-block:: python
+    OpenIdCredentialManager(CredentialManager):
+        def __init__(self, service_information, proxies=None):
+            super(OpenIdCredentialManager, self).__init__(service_information, proxies)
+            self.id_token = None
+
+        def _process_token_response(self,  token_response, refresh_token_mandatory):
+            id_token = token_response.get('id_token')
+            OpenIdCredentialManager._check_id(id_token)
+            super(OpenIdCredentialManager, self)._process_token_response(token_response, refresh_token_mandatory)
+            self.id_token = id_token
+
+        @staticmethod
+        def _check_id(id_token):
+            # check that open id token is valid
+            pass

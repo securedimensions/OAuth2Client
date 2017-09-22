@@ -261,7 +261,10 @@ class TestManager(unittest.TestCase):
                     for name, expected_value in required_parameters.items():
                         test_case.assertEqual(parameters.get(bufferize_string(name), None),
                                               [bufferize_string(expected_value)])
-                    response = json.dumps(dict(refresh_token=refresh_token, access_token=access_token))
+                    response_body = dict(access_token=access_token)
+                    if not no_refresh_token:
+                        response_body['refresh_token'] = refresh_token
+                    response = json.dumps(response_body)
                     self.send_response(OK, 'OK')
                     self.send_header("Content-type", 'text/plain')
                     self.send_header("Content-Length", len(response))
