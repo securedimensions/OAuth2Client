@@ -130,13 +130,13 @@ class CredentialManager(object):
         request_parameters = dict(code=code, grant_type="authorization_code",
                                   scope=' '.join(self.service_information.scopes),
                                   redirect_uri=redirect_uri)
-        self._token_request(request_parameters)
+        self._token_request(request_parameters, True)
 
     def init_with_user_credentials(self, login, password):
         request_parameters = dict(username=login, grant_type="password",
                                   scope=' '.join(self.service_information.scopes),
                                   password=password)
-        self._token_request(request_parameters)
+        self._token_request(request_parameters, True)
 
     def init_with_client_credentials(self):
         request_parameters = dict(grant_type="client_credentials",
@@ -147,14 +147,16 @@ class CredentialManager(object):
         request_parameters = dict(grant_type="refresh_token",
                                   scope=' '.join(self.service_information.scopes),
                                   refresh_token=refresh_token)
-        self._token_request(request_parameters)
+        self._token_request(request_parameters, False)
+        if self.refresh_token is None:
+            self.refresh_token = refresh_token
 
     def _refresh_token(self):
         request_parameters = dict(grant_type="refresh_token",
                                   scope=' '.join(self.service_information.scopes),
                                   refresh_token=self.refresh_token)
         try:
-            self._token_request(request_parameters)
+            self._token_request(request_parameters, False)
         except OAuthError as err:
             if err.status_code == UNAUTHORIZED:
                 _logger.debug('refresh_token - unauthorized - cleaning token')
@@ -162,7 +164,7 @@ class CredentialManager(object):
                 self.refresh_token = None
             raise err
 
-    def _token_request(self, request_parameters, contain_refresh_token=True):
+    def _token_request(self, request_parameters, refresh_token_mandatory):
         response = requests.post(self.service_information.token_service,
                                  data=request_parameters,
                                  headers=dict(Authorization='Basic %s' % self.service_information.auth),
@@ -172,8 +174,7 @@ class CredentialManager(object):
             CredentialManager._handle_bad_response(response)
         else:
             _logger.debug(response.text)
-            self._process_token_response(response.json(),
-                                         contain_refresh_token and 'refresh_token' not in request_parameters)
+            self._process_token_response(response.json(), refresh_token_mandatory)
 
     def _process_token_response(self,  token_response, refresh_token_mandatory):
         self.refresh_token = token_response['refresh_token'] if refresh_token_mandatory \
