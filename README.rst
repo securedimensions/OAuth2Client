@@ -108,7 +108,8 @@ Read other fields from token response
 ``CredentialManager`` can be subclassed to handle other token response fields such as ``id_token`` in OpenId protocol.
 
 .. code-block:: python
-    OpenIdCredentialManager(CredentialManager):
+
+    class OpenIdCredentialManager(CredentialManager):
         def __init__(self, service_information, proxies=None):
             super(OpenIdCredentialManager, self).__init__(service_information, proxies)
             self.id_token = None
@@ -123,3 +124,5 @@ Read other fields from token response
         def _check_id(id_token):
             # check that open id token is valid
             pass
+
+
