@@ -127,36 +127,33 @@ class CredentialManager(object):
                 self.authorization_code_context = None
 
     def init_with_authorize_code(self, redirect_uri, code):
-        request_parameters = dict(code=code, grant_type="authorization_code",
-                                  scope=' '.join(self.service_information.scopes),
-                                  redirect_uri=redirect_uri)
-        self._token_request(request_parameters, True)
+        payload = dict(code=code,
+                       scope=' '.join(self.service_information.scopes),
+                       redirect_uri=redirect_uri)
+        self._token_request("authorization_code", payload, True)
 
     def init_with_user_credentials(self, login, password):
-        request_parameters = dict(username=login, grant_type="password",
-                                  scope=' '.join(self.service_information.scopes),
-                                  password=password)
-        self._token_request(request_parameters, True)
+        payload = dict(username=login,
+                       scope=' '.join(self.service_information.scopes),
+                       password=password)
+        self._token_request("password", payload, True)
 
     def init_with_client_credentials(self):
-        request_parameters = dict(grant_type="client_credentials",
-                                  scope=' '.join(self.service_information.scopes))
-        self._token_request(request_parameters, False)
+        payload = dict(scope=' '.join(self.service_information.scopes))
+        self._token_request("client_credentials", payload, False)
 
     def init_with_token(self, refresh_token):
-        request_parameters = dict(grant_type="refresh_token",
-                                  scope=' '.join(self.service_information.scopes),
-                                  refresh_token=refresh_token)
-        self._token_request(request_parameters, False)
+        payload = dict(scope=' '.join(self.service_information.scopes),
+                       refresh_token=refresh_token)
+        self._token_request("refresh_token", payload, False)
         if self.refresh_token is None:
             self.refresh_token = refresh_token
 
     def _refresh_token(self):
-        request_parameters = dict(grant_type="refresh_token",
-                                  scope=' '.join(self.service_information.scopes),
-                                  refresh_token=self.refresh_token)
+        payload = dict(scope=' '.join(self.service_information.scopes),
+                       refresh_token=self.refresh_token)
         try:
-            self._token_request(request_parameters, False)
+            self._token_request("refresh_token", payload, False)
         except OAuthError as err:
             if err.status_code == UNAUTHORIZED:
                 _logger.debug('refresh_token - unauthorized - cleaning token')
@@ -164,10 +161,13 @@ class CredentialManager(object):
                 self.refresh_token = None
             raise err
 
-    def _token_request(self, request_parameters, refresh_token_mandatory):
+    def _token_request(self, grant_type, request_parameters, refresh_token_mandatory):
+        request_parameters['grant_type'] = grant_type
+        headers = self._token_request_headers(grant_type)
+        headers['Authorization'] = 'Basic %s' % self.service_information.auth
         response = requests.post(self.service_information.token_service,
                                  data=request_parameters,
-                                 headers=dict(Authorization='Basic %s' % self.service_information.auth),
+                                 headers=headers,
                                  proxies=self.proxies,
                                  verify=not self.service_information.skip_ssl_verifications)
         if response.status_code != OK:
@@ -236,6 +236,10 @@ class CredentialManager(object):
             return method(url, **kwargs)
         else:
             return response
+
+    @staticmethod
+    def _token_request_headers(grant_type):
+        return dict()
 
     @staticmethod
     def _is_token_expired(response):
