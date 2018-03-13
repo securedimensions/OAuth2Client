@@ -14,10 +14,10 @@ _logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG,
                     format='%(levelname)5s - %(name)s -  %(message)s')
 
-authorize_server_port = 8080
-token_server_port = 8081
-api_server_port = 8082
-redirect_server_port = 8090
+authorize_server_port = 9090
+token_server_port = 9091
+api_server_port = 9092
+redirect_server_port = 9099
 
 service_information = ServiceInformation(
     authorize_service='http://localhost:%d/oauth/authorize' % authorize_server_port,

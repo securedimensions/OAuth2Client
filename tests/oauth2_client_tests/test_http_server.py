@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.DEBUG,
 
 
 class TestServer(unittest.TestCase):
-    PORT = 8080
+    PORT = 9090
 
     SERVER = None
 

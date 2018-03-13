@@ -183,8 +183,9 @@ class CredentialManager(object):
 
     @property
     def _access_token(self):
-        if self._session is not None:
-            return self._session.headers['Authorization'][len('Bearer '):]
+        authorization_header = self._session.headers.get('Authorization') if self._session is not None else None
+        if authorization_header is not None:
+            return authorization_header[len('Bearer '):]
         else:
             return None
 
@@ -195,7 +196,8 @@ class CredentialManager(object):
             self._session.proxies = self.proxies
             self._session.verify = not self.service_information.skip_ssl_verifications
             self._session.trust_env = False
-        self._session.headers.update(dict(Authorization='Bearer %s' % access_token))
+        if access_token is not None and len(access_token) > 0:
+            self._session.headers.update(dict(Authorization='Bearer %s' % access_token))
 
     def get(self, url, params=None, **kwargs):
         kwargs['params'] = params
