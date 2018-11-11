@@ -1,11 +1,9 @@
 import base64
 import logging
-import json
 from threading import Event
 
-from oauth2_client.imported import *
 from oauth2_client.http_server import start_http_server, stop_http_server
-
+from oauth2_client.imported import *
 
 _logger = logging.getLogger(__name__)
 
@@ -22,7 +20,7 @@ class OAuthError(BaseException):
 
 class ServiceInformation(object):
     def __init__(self, authorize_service, token_service, client_id, client_secret, scopes,
-                 skip_ssl_verifications=False):
+                 verify=True):
         self.authorize_service = authorize_service
         self.token_service = token_service
         self.client_id = client_id
@@ -30,7 +28,7 @@ class ServiceInformation(object):
         self.scopes = scopes
         self.auth = unbufferize_buffer(
             base64.b64encode(bufferize_string('%s:%s' % (self.client_id, self.client_secret))))
-        self.skip_ssl_verifications = skip_ssl_verifications
+        self.verify = verify
 
 
 class AuthorizeResponseCallback(dict):
@@ -60,7 +58,7 @@ class CredentialManager(object):
         self.authorization_code_context = None
         self.refresh_token = None
         self._session = None
-        if service_information.skip_ssl_verifications:
+        if not service_information.verify:
             from requests.packages.urllib3.exceptions import InsecureRequestWarning
             import warnings
 
@@ -169,7 +167,7 @@ class CredentialManager(object):
                                  data=request_parameters,
                                  headers=headers,
                                  proxies=self.proxies,
-                                 verify=not self.service_information.skip_ssl_verifications)
+                                 verify=self.service_information.verify)
         if response.status_code != OK:
             CredentialManager._handle_bad_response(response)
         else:
@@ -194,7 +192,7 @@ class CredentialManager(object):
         if self._session is None:
             self._session = requests.Session()
             self._session.proxies = self.proxies
-            self._session.verify = not self.service_information.skip_ssl_verifications
+            self._session.verify = self.service_information.verify
             self._session.trust_env = False
         if access_token is not None and len(access_token) > 0:
             self._session.headers.update(dict(Authorization='Bearer %s' % access_token))
