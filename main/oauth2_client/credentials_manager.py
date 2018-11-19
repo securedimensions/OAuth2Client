@@ -71,7 +71,8 @@ class CredentialManager(object):
             raise OAuthError(response.status_code, error.get('error'), error.get('error_description'))
         except BaseException as ex:
             if type(ex) != OAuthError:
-                _logger.exception('_handle_bad_response - error while getting error as json - %s - %s' % (type(ex), str(ex)))
+                _logger.exception(
+                    '_handle_bad_response - error while getting error as json - %s - %s' % (type(ex), str(ex)))
                 raise OAuthError(response.status_code, 'unknown_error', response.text)
             else:
                 raise
@@ -110,7 +111,7 @@ class CredentialManager(object):
                 code = self.authorization_code_context.results.get('code', None)
                 state = self.authorization_code_context.results.get('state', None)
                 if error is not None:
-                    raise OAuthError(UNAUTHORIZED, error,error_description)
+                    raise OAuthError(UNAUTHORIZED, error, error_description)
                 elif state != self.authorization_code_context.state:
                     _logger.warn('State received does not match the one that was sent')
                     raise OAuthError(INTERNAL_SERVER_ERROR, 'invalid_state',
@@ -125,33 +126,43 @@ class CredentialManager(object):
                 self.authorization_code_context = None
 
     def init_with_authorize_code(self, redirect_uri, code):
-        payload = dict(code=code,
-                       scope=' '.join(self.service_information.scopes),
-                       redirect_uri=redirect_uri)
-        self._token_request("authorization_code", payload, True)
+        self._token_request(self._grant_code_request(code, redirect_uri), True)
 
     def init_with_user_credentials(self, login, password):
-        payload = dict(username=login,
-                       scope=' '.join(self.service_information.scopes),
-                       password=password)
-        self._token_request("password", payload, True)
+        self._token_request(self._grant_password_request(login, password), True)
 
     def init_with_client_credentials(self):
-        payload = dict(scope=' '.join(self.service_information.scopes))
-        self._token_request("client_credentials", payload, False)
+        self._token_request(self._grant_client_credentials_request(), False)
 
     def init_with_token(self, refresh_token):
-        payload = dict(scope=' '.join(self.service_information.scopes),
-                       refresh_token=refresh_token)
-        self._token_request("refresh_token", payload, False)
+        self._token_request(self._grant_refresh_token_request(refresh_token), False)
         if self.refresh_token is None:
             self.refresh_token = refresh_token
 
+    def _grant_code_request(self, code, redirect_uri):
+        return dict(grant_type='authorization_code',
+                    code=code,
+                    scope=' '.join(self.service_information.scopes),
+                    redirect_uri=redirect_uri)
+
+    def _grant_password_request(self, login, password):
+        return dict(grant_type='password',
+                    username=login,
+                    scope=' '.join(self.service_information.scopes),
+                    password=password)
+
+    def _grant_client_credentials_request(self):
+        return dict(grant_type="client_credentials", scope=' '.join(self.service_information.scopes))
+
+    def _grant_refresh_token_request(self, refresh_token):
+        return dict(grant_type="refresh_token",
+                    scope=' '.join(self.service_information.scopes),
+                    refresh_token=refresh_token)
+
     def _refresh_token(self):
-        payload = dict(scope=' '.join(self.service_information.scopes),
-                       refresh_token=self.refresh_token)
+        payload = self._grant_refresh_token_request(self.refresh_token)
         try:
-            self._token_request("refresh_token", payload, False)
+            self._token_request(payload, False)
         except OAuthError as err:
             if err.status_code == UNAUTHORIZED:
                 _logger.debug('refresh_token - unauthorized - cleaning token')
@@ -159,9 +170,8 @@ class CredentialManager(object):
                 self.refresh_token = None
             raise err
 
-    def _token_request(self, grant_type, request_parameters, refresh_token_mandatory):
-        request_parameters['grant_type'] = grant_type
-        headers = self._token_request_headers(grant_type)
+    def _token_request(self, request_parameters, refresh_token_mandatory):
+        headers = self._token_request_headers(request_parameters['grant_type'])
         headers['Authorization'] = 'Basic %s' % self.service_information.auth
         response = requests.post(self.service_information.token_service,
                                  data=request_parameters,
@@ -174,7 +184,7 @@ class CredentialManager(object):
             _logger.debug(response.text)
             self._process_token_response(response.json(), refresh_token_mandatory)
 
-    def _process_token_response(self,  token_response, refresh_token_mandatory):
+    def _process_token_response(self, token_response, refresh_token_mandatory):
         self.refresh_token = token_response['refresh_token'] if refresh_token_mandatory \
             else token_response.get('refresh_token')
         self._access_token = token_response['access_token']
