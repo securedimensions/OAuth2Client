@@ -4,13 +4,14 @@ import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
 from socketserver import TCPServer
+from typing import Callable, Any, Type, Optional
 from urllib.parse import unquote
 
 _logger = logging.getLogger(__name__)
 
 
 class _ReuseAddressTcpServer(TCPServer):
-    def __init__(self, host, port, handler_class):
+    def __init__(self, host: str, port: int, handler_class: Type[BaseHTTPRequestHandler]):
         self.allow_reuse_address = True
         TCPServer.__init__(self, (host, port), handler_class)
 
@@ -26,7 +27,7 @@ def read_request_parameters(path: str) -> dict:
     return params_received
 
 
-def start_http_server(port: int, host: str = '', callback=None) -> TCPServer:
+def start_http_server(port: int, host: str = '', callback: Optional[Callable[[dict], None]] = None) -> TCPServer:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             _logger.debug('GET - %s' % self.path)

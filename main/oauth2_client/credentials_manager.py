@@ -2,9 +2,11 @@ import base64
 import logging
 from http import HTTPStatus
 from threading import Event
+from typing import Optional, Any, Union, List, Callable
 from urllib.parse import quote, urlparse
 
 import requests
+from requests import Response
 
 from oauth2_client.http_server import start_http_server, stop_http_server
 
@@ -12,17 +14,19 @@ _logger = logging.getLogger(__name__)
 
 
 class OAuthError(BaseException):
-    def __init__(self, status_code: HTTPStatus, error: str, error_description: str = None):
+    def __init__(self, status_code: HTTPStatus, error: str, error_description: Optional[str] = None):
         self.status_code = status_code
         self.error = error
         self.error_description = error_description
 
     def __str__(self) -> str:
-        return '%d  - %s : %s' % (self.status_code, self.error, self.error_description)
+        return '%d  - %s : %s' % (self.status_code.value, self.error, self.error_description)
 
 
 class ServiceInformation(object):
-    def __init__(self, authorize_service: str, token_service: str, client_id: str, client_secret: str,
+    def __init__(self, authorize_service: Optional[str],
+                 token_service: Optional[str],
+                 client_id: str, client_secret: str,
                  scopes: list,
                  verify: bool = True):
         self.authorize_service = authorize_service
@@ -39,7 +43,7 @@ class AuthorizeResponseCallback(dict):
         super(AuthorizeResponseCallback, self).__init__(*args, **kwargs)
         self.response = Event()
 
-    def wait(self, timeout: float = None):
+    def wait(self, timeout: Optional[float] = None):
         self.response.wait(timeout)
 
     def register_parameters(self, parameters: dict):
@@ -55,7 +59,7 @@ class AuthorizationContext(object):
 
 
 class CredentialManager(object):
-    def __init__(self, service_information: ServiceInformation, proxies: dict = None):
+    def __init__(self, service_information: ServiceInformation, proxies: Optional[dict] = None):
         self.service_information = service_information
         self.proxies = proxies if proxies is not None else dict(http='', https='')
         self.authorization_code_context = None
@@ -68,7 +72,7 @@ class CredentialManager(object):
             warnings.filterwarnings('ignore', 'Unverified HTTPS request is being made.*', InsecureRequestWarning)
 
     @staticmethod
-    def _handle_bad_response(response: requests.Response):
+    def _handle_bad_response(response: Response):
         try:
             error = response.json()
             raise OAuthError(response.status_code, error.get('error'), error.get('error_description'))
@@ -104,7 +108,7 @@ class CredentialManager(object):
         self.authorization_code_context = AuthorizationContext(state, port, uri_parsed.hostname)
         return self.generate_authorize_url(redirect_uri, state)
 
-    def wait_and_terminate_authorize_code_process(self, timeout: float = None) -> str:
+    def wait_and_terminate_authorize_code_process(self, timeout: Optional[float] = None) -> str:
         if self.authorization_code_context is None:
             raise Exception('Authorization code not started')
         else:
@@ -129,16 +133,16 @@ class CredentialManager(object):
                 stop_http_server(self.authorization_code_context.server)
                 self.authorization_code_context = None
 
-    def init_with_authorize_code(self, redirect_uri, code):
+    def init_with_authorize_code(self, redirect_uri: str, code: str):
         self._token_request(self._grant_code_request(code, redirect_uri), True)
 
-    def init_with_user_credentials(self, login, password):
+    def init_with_user_credentials(self, login: str, password: str):
         self._token_request(self._grant_password_request(login, password), True)
 
     def init_with_client_credentials(self):
         self._token_request(self._grant_client_credentials_request(), False)
 
-    def init_with_token(self, refresh_token):
+    def init_with_token(self, refresh_token: str):
         self._token_request(self._grant_refresh_token_request(refresh_token), False)
         if self.refresh_token is None:
             self.refresh_token = refresh_token
@@ -194,7 +198,7 @@ class CredentialManager(object):
         self._access_token = token_response['access_token']
 
     @property
-    def _access_token(self) -> str:
+    def _access_token(self) -> Optional[str]:
         authorization_header = self._session.headers.get('Authorization') if self._session is not None else None
         if authorization_header is not None:
             return authorization_header[len('Bearer '):]
@@ -211,26 +215,26 @@ class CredentialManager(object):
         if access_token is not None and len(access_token) > 0:
             self._session.headers.update(dict(Authorization='Bearer %s' % access_token))
 
-    def get(self, url: str, params: dict = None, **kwargs) -> requests.Response:
+    def get(self, url: str, params: Optional[dict] = None, **kwargs) -> Response:
         kwargs['params'] = params
         return self._bearer_request(self._get_session().get, url, **kwargs)
 
-    def post(self, url: str, data=None, json=None, **kwargs) -> requests.Response:
+    def post(self, url: str, data: Optional[Any] = None, json: Optional[Any] = None, **kwargs) -> Response:
         kwargs['data'] = data
         kwargs['json'] = json
         return self._bearer_request(self._get_session().post, url, **kwargs)
 
-    def put(self, url: str, data=None, json=None, **kwargs) -> requests.Response:
+    def put(self, url: str, data: Optional[Any] = None, json: Optional[Any] = None, **kwargs) -> Response:
         kwargs['data'] = data
         kwargs['json'] = json
         return self._bearer_request(self._get_session().put, url, **kwargs)
 
-    def patch(self, url: str, data=None, json=None, **kwargs) -> requests.Response:
+    def patch(self, url: str, data: Optional[Any] = None, json: Optional[Any] = None, **kwargs) -> Response:
         kwargs['data'] = data
         kwargs['json'] = json
         return self._bearer_request(self._get_session().patch, url, **kwargs)
 
-    def delete(self, url: str, **kwargs) -> requests.Response:
+    def delete(self, url: str, **kwargs) -> Response:
         return self._bearer_request(self._get_session().delete, url, **kwargs)
 
     def _get_session(self) -> requests.Session:
@@ -238,7 +242,7 @@ class CredentialManager(object):
             raise OAuthError(HTTPStatus.UNAUTHORIZED, 'no_token', "no token provided")
         return self._session
 
-    def _bearer_request(self, method, url: str, **kwargs) -> requests.Response:
+    def _bearer_request(self, method: Callable[[Any], Response], url: str, **kwargs) -> Response:
         headers = kwargs.get('headers', None)
         if headers is None:
             headers = dict()
@@ -256,12 +260,12 @@ class CredentialManager(object):
         return dict()
 
     @staticmethod
-    def _is_token_expired(response: requests.Response) -> bool:
+    def _is_token_expired(response: Response) -> bool:
         if response.status_code == HTTPStatus.UNAUTHORIZED.value:
             try:
                 json_data = response.json()
                 return json_data.get('error', '') == 'invalid_token'
-            except:
+            except BaseException:
                 return False
         else:
             return False
