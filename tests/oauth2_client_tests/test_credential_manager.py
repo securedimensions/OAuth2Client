@@ -1,14 +1,16 @@
-import base64
 import json
 import logging
 import threading
 import unittest
 from cgi import parse_header
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+
+import requests
 
 from oauth2_client.credentials_manager import CredentialManager, ServiceInformation, OAuthError
 from oauth2_client.http_server import read_request_parameters, _ReuseAddressTcpServer
-from oauth2_client.imported import *
-from oauth2_client_tests.imported import *
 
 _logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG,
@@ -43,7 +45,7 @@ class FakeOAuthHandler(BaseHTTPRequestHandler):
             authorize_parsed = urlparse(service_information.authorize_service)
             if self.path == authorize_parsed.path \
                     or self.path.index('%s?' % authorize_parsed.path) != 0:
-                self.send_response(NOT_FOUND, 'Not Found')
+                self.send_response(HTTPStatus.NOT_FOUND.value, 'Not Found')
             else:
                 params_received = read_request_parameters(self.path)
                 self._check_get_parameters(params_received)
@@ -51,10 +53,10 @@ class FakeOAuthHandler(BaseHTTPRequestHandler):
                 state = params_received.get('state', '')
                 if redirect_uri is not None:
                     _logger.debug('FakeOAuthHandler - redirect - %s', redirect_uri)
-                    self.send_response(SEE_OTHER, 'Redirect')
+                    self.send_response(HTTPStatus.SEE_OTHER.value, 'Redirect')
                     self.send_header("Location", '%s?code=%s&state=%s' % (redirect_uri, FakeOAuthHandler.CODE, state))
                 else:
-                    self.send_response(BAD_REQUEST, 'Bad Request')
+                    self.send_response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
             self.send_header("Content-Length", 0)
             self.end_headers()
         finally:
@@ -69,7 +71,7 @@ class FakeOAuthHandler(BaseHTTPRequestHandler):
                 self._handle_post(parameters)
             else:
                 _logger.debug('FakeOAuthHandler - invalid content type')
-                self.send_response(BAD_REQUEST, 'Invalid content type')
+                self.send_response(HTTPStatus.BAD_REQUEST.value, 'Invalid content type')
         finally:
             self.wfile.flush()
 
@@ -77,7 +79,7 @@ class FakeOAuthHandler(BaseHTTPRequestHandler):
         pass
 
     def _handle_post(self, parameters):
-        self.send_response(OK, 'OK')
+        self.send_response(HTTPStatus.OK.value, 'OK')
         self.send_header("Content-type", 'text/plain')
         self.send_header("Content-Length", 0)
         self.end_headers()
@@ -219,17 +221,17 @@ class TestManager(unittest.TestCase):
             def _handle_request(self):
                 try:
                     test_case.assertEqual(self.headers.get('Authorization', None), 'Bearer %s' % access_token)
-                    self.send_response(OK, 'OK')
+                    self.send_response(HTTPStatus.OK.value, 'OK')
                     self.send_header("Content-type", 'text/plain')
                     self.send_header("Content-Length", 0)
                     self.end_headers()
                 except AssertionError as ex:
                     body = str(ex.message)
-                    self.send_response(UNAUTHORIZED, 'Unauthorized')
+                    self.send_response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
                     self.send_header("Content-type", 'text/plain')
                     self.send_header("Content-Length", len(body))
                     self.end_headers()
-                    self.wfile.write(bufferize_string(body))
+                    self.wfile.write(bytes(body, 'UTF-8'))
 
         with TestServer(api_server_port, BearerHandler):
             _logger.debug('test_get_token_with_code - server started')
@@ -259,20 +261,20 @@ class TestManager(unittest.TestCase):
                 try:
                     test_case.assertEqual(self.headers.get('Authorization', None), basic_auth)
                     for name, expected_value in required_parameters.items():
-                        test_case.assertEqual(parameters.get(bufferize_string(name), None),
-                                              [bufferize_string(expected_value)])
+                        test_case.assertEqual(parameters.get(bytes(name, 'UTF-8'), None),
+                                              [bytes(expected_value, 'UTF-8')])
                     response_body = dict(access_token=access_token)
                     if not no_refresh_token:
                         response_body['refresh_token'] = refresh_token
                     response = json.dumps(response_body)
-                    self.send_response(OK, 'OK')
+                    self.send_response(HTTPStatus.OK.value, 'OK')
                     self.send_header("Content-type", 'text/plain')
                     self.send_header("Content-Length", len(response))
                     self.end_headers()
-                    self.wfile.write(bufferize_string(response))
+                    self.wfile.write(bytes(response, 'UTF-8'))
                 except AssertionError as error:
                     _logger.error('error - %s', error)
-                    self.send_response(BAD_REQUEST, 'BAD_REQUEST')
+                    self.send_response(HTTPStatus.BAD_REQUEST.value, 'BAD_REQUEST')
                     self.send_header("Content-type", 'text/plain')
                     self.send_header("Content-Length", 0)
                     self.end_headers()

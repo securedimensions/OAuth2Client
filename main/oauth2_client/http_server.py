@@ -1,7 +1,10 @@
+import json
 import logging
 import threading
-import json
-from oauth2_client.imported import *
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler
+from socketserver import TCPServer
+from urllib.parse import unquote
 
 _logger = logging.getLogger(__name__)
 
@@ -12,7 +15,7 @@ class _ReuseAddressTcpServer(TCPServer):
         TCPServer.__init__(self, (host, port), handler_class)
 
 
-def read_request_parameters(path):
+def read_request_parameters(path: str) -> dict:
     params_received = dict()
     idx = path.find('?')
     if idx >= 0 and (idx < len(path) - 1):
@@ -23,18 +26,19 @@ def read_request_parameters(path):
     return params_received
 
 
-def start_http_server(port, host='', callback=None):
+def start_http_server(port: int, host: str = '', callback=None) -> TCPServer:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             _logger.debug('GET - %s' % self.path)
             params_received = read_request_parameters(self.path)
-            response = 'Response received (%s). Result was transmitted to the original thread. You can close this window.' % json.dumps(params_received)
-            self.send_response(OK, 'OK')
+            response = 'Response received (%s). Result was transmitted to the original thread. You can close this window.' % json.dumps(
+                params_received)
+            self.send_response(HTTPStatus.OK.value, 'OK')
             self.send_header("Content-type", 'text/plain')
             self.send_header("Content-Length", len(response))
             self.end_headers()
             try:
-                self.wfile.write(bufferize_string(response))
+                self.wfile.write(bytes(response, 'UTF-8'))
             finally:
                 if callback is not None:
                     callback(params_received)
@@ -53,6 +57,6 @@ def start_http_server(port, host='', callback=None):
     return httpd
 
 
-def stop_http_server(httpd):
+def stop_http_server(httpd: TCPServer):
     _logger.debug('stop_http_server - stopping server')
     httpd.shutdown()
