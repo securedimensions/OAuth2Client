@@ -2,7 +2,7 @@ import base64
 import logging
 from http import HTTPStatus
 from threading import Event
-from typing import Optional, Any, Union, List, Callable
+from typing import Optional, Any, Callable
 from urllib.parse import quote, urlparse
 
 import requests
@@ -13,7 +13,7 @@ from oauth2_client.http_server import start_http_server, stop_http_server
 _logger = logging.getLogger(__name__)
 
 
-class OAuthError(BaseException):
+class OAuthError(Exception):
     def __init__(self, status_code: HTTPStatus, error: str, error_description: Optional[str] = None):
         self.status_code = status_code
         self.error = error
@@ -75,12 +75,12 @@ class CredentialManager(object):
     def _handle_bad_response(response: Response):
         try:
             error = response.json()
-            raise OAuthError(response.status_code, error.get('error'), error.get('error_description'))
+            raise OAuthError(HTTPStatus(response.status_code), error.get('error'), error.get('error_description'))
         except BaseException as ex:
             if type(ex) != OAuthError:
                 _logger.exception(
                     '_handle_bad_response - error while getting error as json - %s - %s' % (type(ex), str(ex)))
-                raise OAuthError(response.status_code, 'unknown_error', response.text)
+                raise OAuthError(HTTPStatus(response.status_code), 'unknown_error', response.text)
             else:
                 raise
 
@@ -264,8 +264,8 @@ class CredentialManager(object):
         if response.status_code == HTTPStatus.UNAUTHORIZED.value:
             try:
                 json_data = response.json()
-                return json_data.get('error', '') == 'invalid_token'
-            except BaseException:
+                return json_data.get('error') == 'invalid_token'
+            except ValueError:
                 return False
         else:
             return False
