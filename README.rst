@@ -61,6 +61,50 @@ Getting a couple of access token may be done like this:
     _logger.debug('Access got = %s', manager._access_token)
     # Here access and refresh token may be used with self.refresh_token
 
+Authorization code with Proof Key for Code Exchange (PKCE)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can generate a couple of code verifier and code challenge as follows:
+
+.. code-block:: python
+    import base64
+    import hashlib
+    import logging
+    import secrets
+    from typing import Tuple
+
+    def generate_sha256_pkce(length: int) -> Tuple[str, str]:
+        if not (43 <= length <= 128):
+            raise Exception("Invalid length: " % str(length))
+        verifier = secrets.token_urlsafe(length)
+        encoded = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode('ascii')).digest())
+        challenge = encoded.decode('ascii')[:-1]
+        return verifier, challenge
+
+Then you can init authorization code workflow as follows
+
+.. code-block:: python
+
+    url = manager.init_authorize_code_process(redirect_uri, 'state_test',
+                                              code_challenge=code_challenge,
+                                              code_challenge_method="S256")
+
+or either generate the url
+
+.. code-block:: python
+
+    url = manager.generate_authorize_url(redirect_uri, 'state_test',
+                                         code_challenge=code_challenge,
+                                         code_challenge_method="S256")
+
+And oce you obtains the ``code`` exchange it as follows
+
+.. code-block:: python
+
+    manager.init_with_authorize_code(redirect_uri, code,
+                                                code_verifier=code_verifier)
+
+
 User credentials
 ~~~~~~~~~~~~~~~~
 Getting a couple of access and refresh token is much easier:
