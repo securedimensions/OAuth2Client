@@ -138,7 +138,10 @@ class CredentialManager(object):
                 self.authorization_code_context = None
 
     def init_with_authorize_code(self, redirect_uri: str, code: str, **kwargs):
-        self._token_request(self._grant_code_request(code, redirect_uri, **kwargs),
+        self._token_request(self._grant_code_request(code,
+                                                     redirect_uri,
+                                                     client_id=self.service_information.client_id,
+                                                     **kwargs),
                             "offline_access" in self.service_information.scopes)
 
     def init_with_user_credentials(self, login: str, password: str):
