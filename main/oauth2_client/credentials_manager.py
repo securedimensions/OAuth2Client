@@ -26,7 +26,7 @@ class OAuthError(Exception):
 class ServiceInformation(object):
     def __init__(self, authorize_service: Optional[str],
                  token_service: Optional[str],
-                 client_id: str, client_secret: str,
+                 client_id: str, client_secret: Optional[str],
                  scopes: list,
                  verify: bool = True):
         self.authorize_service = authorize_service
@@ -34,7 +34,10 @@ class ServiceInformation(object):
         self.client_id = client_id
         self.client_secret = client_secret
         self.scopes = scopes
-        self.auth = base64.b64encode(bytes('%s:%s' % (self.client_id, self.client_secret), 'UTF-8')).decode('UTF-8')
+        self.auth = (
+            base64.b64encode(bytes('%s:%s' % (self.client_id, self.client_secret), 'UTF-8')).decode('UTF-8')
+            if self.client_secret else None
+        )
         self.verify = verify
 
 
@@ -183,7 +186,8 @@ class CredentialManager(object):
 
     def _token_request(self, request_parameters: dict, refresh_token_mandatory: bool):
         headers = self._token_request_headers(request_parameters['grant_type'])
-        headers['Authorization'] = 'Basic %s' % self.service_information.auth
+        if self.service_information.auth:
+            headers['Authorization'] = 'Basic %s' % self.service_information.auth
         response = requests.post(self.service_information.token_service,
                                  data=request_parameters,
                                  headers=headers,
