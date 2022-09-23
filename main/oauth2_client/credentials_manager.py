@@ -188,6 +188,8 @@ class CredentialManager(object):
         headers = self._token_request_headers(request_parameters['grant_type'])
         if self.service_information.auth:
             headers['Authorization'] = 'Basic %s' % self.service_information.auth
+        else:
+            request_parameters["client_id"] = self.service_information.client_id
         response = requests.post(self.service_information.token_service,
                                  data=request_parameters,
                                  headers=headers,
