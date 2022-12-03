@@ -35,7 +35,6 @@ pointing to your loop-back address. The server waits a ``GET`` requests with the
 Getting a couple of access token may be done like this:
 
 .. code-block:: python
-
     scopes = ['scope_1', 'scope_2']
 
     service_information = ServiceInformation('https://authorization-server/oauth/authorize',
@@ -64,9 +63,10 @@ Getting a couple of access token may be done like this:
 Authorization code with Proof Key for Code Exchange (PKCE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You can generate a couple of code verifier and code challenge as follows:
+In case you can generate a couple of code verifier and code challenge as follows:
 
 .. code-block:: python
+
     import base64
     import hashlib
     import logging
@@ -81,13 +81,16 @@ You can generate a couple of code verifier and code challenge as follows:
         challenge = encoded.decode('ascii')[:-1]
         return verifier, challenge
 
+
 Then you can init authorization code workflow as follows
 
 .. code-block:: python
 
+    code_verifier, code_challenge = generate_sha256_pkce(64)
     url = manager.init_authorize_code_process(redirect_uri, 'state_test',
                                               code_challenge=code_challenge,
                                               code_challenge_method="S256")
+
 
 or either generate the url
 
@@ -97,12 +100,12 @@ or either generate the url
                                          code_challenge=code_challenge,
                                          code_challenge_method="S256")
 
-And oce you obtains the ``code`` exchange it as follows
+
+And once you obtains the ``code`` exchange it as follows
 
 .. code-block:: python
 
-    manager.init_with_authorize_code(redirect_uri, code,
-                                                code_verifier=code_verifier)
+    manager.init_with_authorize_code(redirect_uri, code, code_verifier=code_verifier)
 
 
 User credentials
