@@ -35,6 +35,7 @@ pointing to your loop-back address. The server waits a ``GET`` requests with the
 Getting a couple of access token may be done like this:
 
 .. code-block:: python
+
     scopes = ['scope_1', 'scope_2']
 
     service_information = ServiceInformation('https://authorization-server/oauth/authorize',
@@ -62,7 +63,6 @@ Getting a couple of access token may be done like this:
 
 Authorization code with Proof Key for Code Exchange (PKCE)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 In case you can generate a couple of code verifier and code challenge as follows:
 
 .. code-block:: python
