@@ -288,3 +288,15 @@ class TestManager(unittest.TestCase):
                 self.assertIsNone(manager.refresh_token)
             self.assertEqual(manager._access_token, access_token)
 
+    def test_default_user_agent(self):
+        manager = CredentialManager(service_information, proxies=dict(http=''))
+        manager._access_token = 'a-access-token'
+        self.assertIsNone(manager.user_agent)
+        self.assertIn("python-requests", manager._session.headers["User-Agent"])
+
+    def test_custom_user_agent(self):
+        user_agent = 'custom-agent'
+        manager = CredentialManager(service_information, proxies=dict(http=''), user_agent=user_agent)
+        manager._access_token = 'a-access-token'
+        self.assertEqual(user_agent, manager.user_agent)
+        self.assertEqual(user_agent, manager._session.headers["User-Agent"])

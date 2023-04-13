@@ -62,9 +62,10 @@ class AuthorizationContext(object):
 
 
 class CredentialManager(object):
-    def __init__(self, service_information: ServiceInformation, proxies: Optional[dict] = None):
+    def __init__(self, service_information: ServiceInformation, proxies: Optional[dict] = None, user_agent: Optional[str] = None):
         self.service_information = service_information
         self.proxies = proxies if proxies is not None else dict(http='', https='')
+        self.user_agent = user_agent
         self.authorization_code_context = None
         self.refresh_token = None
         self._session = None
@@ -221,6 +222,8 @@ class CredentialManager(object):
             self._session.proxies = self.proxies
             self._session.verify = self.service_information.verify
             self._session.trust_env = False
+            if self.user_agent:
+                self._session.headers.update({'User-Agent': self.user_agent})
         if access_token is not None and len(access_token) > 0:
             self._session.headers.update(dict(Authorization='Bearer %s' % access_token))
 
