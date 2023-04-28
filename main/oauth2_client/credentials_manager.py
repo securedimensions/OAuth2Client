@@ -34,11 +34,16 @@ class ServiceInformation(object):
         self.client_id = client_id
         self.client_secret = client_secret
         self.scopes = scopes
-        self.auth = (
-            base64.b64encode(bytes('%s:%s' % (self.client_id, self.client_secret), 'UTF-8')).decode('UTF-8')
-            if self.client_secret else None
-        )
         self.verify = verify
+
+    @property
+    def authorization_header(self):
+        return 'Basic %s' % base64.b64encode(bytes('%s:%s' % (self.client_id, self.client_secret), 'UTF-8'))\
+            .decode('UTF-8')
+
+    @property
+    def public_api(self):
+        return self.client_secret is None
 
 
 class AuthorizeResponseCallback(dict):
@@ -187,11 +192,10 @@ class CredentialManager(object):
 
     def _token_request(self, request_parameters: dict, refresh_token_mandatory: bool):
         headers = self._token_request_headers(request_parameters['grant_type'])
-        if self.service_information.auth:
-            headers['Authorization'] = 'Basic %s' % self.service_information.auth
-        else:
+        if self.service_information.public_api:
             request_parameters["client_id"] = self.service_information.client_id
-            request_parameters["client_secret"] = self.service_information.client_secret
+        else:
+            headers['Authorization'] = self.service_information.authorization_header
         response = requests.post(self.service_information.token_service,
                                  data=request_parameters,
                                  headers=headers,
