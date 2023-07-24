@@ -3,7 +3,7 @@ import logging
 from http import HTTPStatus
 from threading import Event
 from typing import Optional, Any, Callable
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlparse, unquote_plus
 
 import requests
 from requests import Response
@@ -130,6 +130,8 @@ class CredentialManager(object):
                 error_description = self.authorization_code_context.results.get('error_description', '')
                 code = self.authorization_code_context.results.get('code', None)
                 state = self.authorization_code_context.results.get('state', None)
+                # ensure space decoding does not result in '+'
+                state = unquote_plus(state)
                 if error is not None:
                     raise OAuthError(HTTPStatus.UNAUTHORIZED, error, error_description)
                 elif state != self.authorization_code_context.state:
