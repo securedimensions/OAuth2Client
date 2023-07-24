@@ -129,6 +129,8 @@ class CredentialManager(object):
                 error = self.authorization_code_context.results.get('error', None)
                 error_description = self.authorization_code_context.results.get('error_description', '')
                 code = self.authorization_code_context.results.get('code', None)
+                # fetch id_token
+                id_token = self.authorization_code_context.results.get('id_token', None)
                 state = self.authorization_code_context.results.get('state', None)
                 # ensure space decoding does not result in '+'
                 state = unquote_plus(state)
@@ -142,7 +144,7 @@ class CredentialManager(object):
                 elif code is None:
                     raise OAuthError(HTTPStatus.INTERNAL_SERVER_ERROR, 'no_code', 'No code returned')
                 else:
-                    return code
+                    return code, id_token
             finally:
                 stop_http_server(self.authorization_code_context.server)
                 self.authorization_code_context = None
