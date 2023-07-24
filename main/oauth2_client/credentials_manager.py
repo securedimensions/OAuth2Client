@@ -98,8 +98,10 @@ class CredentialManager(object):
                           redirect_uri=redirect_uri,
                           response_type='code',
                           scope=' '.join(self.service_information.scopes),
-                          state=state,
-                          **kwargs)
+                          state=state)
+        # Allow to use response_type='id_token code'
+        for key, value in kwargs.items():
+            parameters[key] = value
         return '%s?%s' % (self.service_information.authorize_service,
                           '&'.join('%s=%s' % (k, quote(v, safe='~()*!.\'')) for k, v in parameters.items()))
 
