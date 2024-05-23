@@ -1,11 +1,15 @@
 OAuth2Client
 ============
 .. image:: https://img.shields.io/pypi/v/oauth2-client.svg
-    :target: https://pypi.python.org/pypi/oauth2-client
+    :target: https://pypi.python.org/pypi/sd-oauth2-client
 
 .. image:: https://img.shields.io/github/license/antechrestos/Oauth2Client.svg
     :target: https://raw.githubusercontent.com/antechrestos/OAuth2Client/master/LICENSE
 
+Note
+----
+
+This library extends the original library `OAuth2Client` with the ability of `id_token`. To distinguish this library from the original `OAuth2Client` this library uses the prefix `sd`. Therefore, the PyPi project name is `sd-oauth2-client`.
 
 Presentation
 ------------
